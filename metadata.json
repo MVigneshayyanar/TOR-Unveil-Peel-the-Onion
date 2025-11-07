@@ -1,0 +1,5 @@
+{
+  "name": "TOR – Unveil: Peel the Onion",
+  "description": "An analytical system designed to trace TOR network users by correlating activity patterns and TOR node data to identify probable origin IPs behind TOR-based traffic.",
+  "requestFramePermissions": []
+}
