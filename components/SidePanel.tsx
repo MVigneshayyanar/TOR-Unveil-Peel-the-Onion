@@ -1,6 +1,11 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { OriginCandidate } from '../types';
+
+interface SidePanelProps {
+  candidates: OriginCandidate[];
+  onAnalyzePcap: (file: File) => void;
+  isAnalyzing: boolean;
+}
 
 const TargetIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -27,7 +32,20 @@ const ConfidenceBar: React.FC<{ value: number }> = ({ value }) => {
     );
 };
 
-const SidePanel: React.FC<{ candidates: OriginCandidate[] }> = ({ candidates }) => {
+const SidePanel: React.FC<SidePanelProps> = ({ candidates, onAnalyzePcap, isAnalyzing }) => {
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files.length > 0) {
+            setSelectedFile(event.target.files[0]);
+        }
+    };
+
+    const handleAnalyzeClick = () => {
+        if (selectedFile) {
+            onAnalyzePcap(selectedFile);
+        }
+    };
 
     const handleExportCSV = () => {
         const headers = "IP Address,Country,Confidence,Evidence";
@@ -47,13 +65,15 @@ const SidePanel: React.FC<{ candidates: OriginCandidate[] }> = ({ candidates }) 
 
     return (
         <div className="p-4 h-full flex flex-col">
-            <h2 className="text-lg font-bold text-brand-text mb-4 flex items-center gap-2">
-                <TargetIcon />
-                Origin Candidates
-            </h2>
-            <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-                {candidates.map((candidate, index) => (
-                    <div key={candidate.ip} className={`p-3 rounded-lg border ${index === 0 ? 'bg-brand-primary/10 border-brand-primary' : 'border-brand-border bg-brand-bg'}`}>
+            <div className="flex-shrink-0">
+                <h2 className="text-lg font-bold text-brand-text mb-4 flex items-center gap-2">
+                    <TargetIcon />
+                    Origin Candidates
+                </h2>
+            </div>
+            <div className="flex-1 space-y-3 overflow-y-auto pr-1 mb-4">
+                {candidates.map((candidate) => (
+                    <div key={candidate.ip} className={`p-3 rounded-lg border ${candidate.confidence > 80 ? 'bg-brand-primary/10 border-brand-primary' : 'border-brand-border bg-brand-bg'}`}>
                         <div className="flex justify-between items-center mb-2">
                             <span className="font-bold text-brand-text">{candidate.ip} [{candidate.country}]</span>
                             <span className={`font-bold text-sm ${candidate.confidence > 75 ? 'text-brand-primary' : candidate.confidence > 50 ? 'text-yellow-400' : 'text-brand-accent'}`}>
@@ -70,16 +90,42 @@ const SidePanel: React.FC<{ candidates: OriginCandidate[] }> = ({ candidates }) 
                     </div>
                 ))}
             </div>
-            <div className="mt-4 pt-4 border-t border-brand-border">
-                <h3 className="text-md font-bold text-brand-text mb-3">Forensic Report</h3>
-                <div className="flex gap-2">
-                    <button onClick={handleExportCSV} className="flex-1 bg-brand-primary text-brand-bg font-bold py-2 px-4 rounded-md hover:bg-opacity-80 transition-all flex items-center justify-center gap-2 text-sm">
-                        <DownloadIcon />
-                        Export CSV
-                    </button>
-                    <button disabled className="flex-1 bg-brand-border text-brand-text-dim font-bold py-2 px-4 rounded-md cursor-not-allowed text-sm">
-                        Export PDF
-                    </button>
+            <div className="flex-shrink-0 space-y-4">
+                <div className="pt-4 border-t border-brand-border">
+                    <h3 className="text-md font-bold text-brand-text mb-3">Traffic Correlation</h3>
+                    <div className="space-y-3">
+                        <label htmlFor="file-upload" className="relative cursor-pointer bg-brand-bg border border-brand-border rounded-md font-medium text-brand-text-dim hover:text-brand-text focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-brand-primary block py-2 px-3 text-sm text-center truncate">
+                            <span>{selectedFile ? selectedFile.name : 'Upload PCAP File'}</span>
+                            <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept=".pcap,.cap" disabled={isAnalyzing}/>
+                        </label>
+                        <button 
+                            onClick={handleAnalyzeClick} 
+                            disabled={!selectedFile || isAnalyzing}
+                            className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-all flex items-center justify-center gap-2 text-sm disabled:bg-brand-border disabled:text-brand-text-dim disabled:cursor-not-allowed hover:bg-blue-500"
+                        >
+                            {isAnalyzing ? (
+                                <>
+                                    <svg className="animate-spin -ml-1 mr-3 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Analyzing...
+                                </>
+                            ) : 'Analyze Traffic'}
+                        </button>
+                    </div>
+                </div>
+                <div className="pt-4 border-t border-brand-border">
+                    <h3 className="text-md font-bold text-brand-text mb-3">Forensic Report</h3>
+                    <div className="flex gap-2">
+                        <button onClick={handleExportCSV} className="flex-1 bg-brand-primary text-brand-bg font-bold py-2 px-4 rounded-md hover:bg-opacity-80 transition-all flex items-center justify-center gap-2 text-sm">
+                            <DownloadIcon />
+                            Export CSV
+                        </button>
+                        <button disabled className="flex-1 bg-brand-border text-brand-text-dim font-bold py-2 px-4 rounded-md cursor-not-allowed text-sm">
+                            Export PDF
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
